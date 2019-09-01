@@ -162,6 +162,21 @@ void loop() {
   }
   else
     buttonCPressed = false;
+
+  /*
+  int test1 = analogRead(ENCODER_1);
+  int test2 = analogRead(ENCODER_2);
+  Serial.print(test1);
+  Serial.print(" ");
+  Serial.println(test2);
+  int test3 = digitalRead(ENCODER_1);
+  int test4 = digitalRead(ENCODER_2);
+  Serial.print(test3);
+  Serial.print(" ");
+  Serial.println(test4);
+  
+  delay(200);
+  */
 }
 
 void error(const __FlashStringHelper*err) {
