@@ -232,6 +232,7 @@ void connected(void) {
 void disconnected(void) {
   Serial.println("disconnected");
   isConnected = false;
+  externalBPM = false;
 }
 
 // If incoming MIDI message is a controller message (regardless of channel)
