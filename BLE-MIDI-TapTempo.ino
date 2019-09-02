@@ -2,24 +2,36 @@
 BT tap tempo controller.
 Will receive a tempo value (encoded as MIDI CCs) and generate tap tempo signals.
 This allows to sync delays and other pedals with a tap tempo input
-with Ableton live. Requires the companion Max/MSP patch.
+with Ableton live. Uses theAdafuir OLED wing to display tempo/delay time
+information.
+
+Requires a companion Max/MSP patch.
+
+HARDWARE REQUIREMENTS:
+- Adafruit Bluefruit LE Feather
+- Adafruit OLED FeatherWing
+
+LIBRARIES:
+- Adafruit BluefruitLE nRF51 library: https://github.com/adafruit/Adafruit_BluefruitLE_nRF51
+- FortySevenEffects MIDI Arduino Library: https://github.com/FortySevenEffects/arduino_midi_library
+- Adafruit SSD1306: https://github.com/adafruit/Adafruit_SSD1306
+- Adafruit_GFX: https://github.com/adafruit/Adafruit-GFX-Library
+
+OTHER:
+- Companion Max for Live patch (will upload it soon)
 
 NOTES:
-- Based on the "Hello World" Bluefruit Feather UNTZtrument MIDI example here:
-  https://github.com/adafruit/Adafruit_UNTZtrument
 - BLE MIDI does not transmit MIDI clock, so MIDI CC messages are used
   to encode a wide range of tempos (0-999)
-
-Requires an Adafruit Bluefruit LE Feather, the Adafruit 
-BluefruitLE nRF51 library, and a MIDI software synth on your
-host computer or mobile device.
+- Based on the "Hello World" Bluefruit Feather UNTZtrument MIDI example here:
+  https://github.com/adafruit/Adafruit_UNTZtrument
+  as well as the Adafruit OLED FeatherWing sample code here:
+  https://learn.adafruit.com/adafruit-oled-featherwing?view=all
 
 Author: JP Carrascal
 Based on origianl code by Adafruit Industries (Phil Burgess, Todd Treece)
 
 */
-
-
 
 #include <Wire.h>
 #include <SPI.h>
@@ -40,16 +52,24 @@ Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 Adafruit_BLEMIDI midi(ble);
 
-#define TAP_TEMPO_OUT  13
+#define OPTO_OUT  13
+#define RELAY_OUT  12
+
 #define CHANNEL 1  // MIDI channel number
-#define ENCODER_1 11
-#define ENCODER_2 12
+#define ENCODER_1 A0
+#define ENCODER_2 A1
 
 #define BUTTON_A  9
 #define BUTTON_B  6
 #define BUTTON_C  5
 
-#define MULTIPLIER_COUNT 3
+// GEAR_CHANGE is a threshold time between encoder increment/decrements
+// below which tempo is changed by +/-10 increments as opposed of +/-1.
+#define GEAR_CHANGE 100
+// Number of delay time signatures
+#define SIGNATURE_COUNT 3
+#define MIN_TEMPO 20
+#define MAX_TEMPO 999
 
 bool isConnected = false;
 bool externalBPM = false;
@@ -58,13 +78,19 @@ int delayTime = 500;
 int tempo = 120;
 bool newTempo = true;
 int tapCounter = 0;
-float multipliers[MULTIPLIER_COUNT] = {1, 0.5, 0.75};
-String multitext[MULTIPLIER_COUNT] = {"1/1", "1/5", "3/4"};
-int currentMultiplier = 0;
+// Delay time signature:
+// 1=quarter note, 0.5=eighth note, 0.75=three sixteenths (aka "The Edge" delay)
+float signatures[SIGNATURE_COUNT] = {1, 0.5, 0.75};
+String sigLabels[SIGNATURE_COUNT] = {"1/1", "1/2", "3/4"};
+int currentSignature = 0;
 bool buttonCPressed = false;
+// Encoder variables
+int prevCode = 3;
+unsigned long previousTimeEncoder = 0;
 
 void setup() {
-  pinMode(TAP_TEMPO_OUT, OUTPUT);
+  pinMode(OPTO_OUT, OUTPUT);
+  pinMode(RELAY_OUT, OUTPUT);
   pinMode(ENCODER_1, INPUT);
   pinMode(ENCODER_2, INPUT);
   pinMode(BUTTON_A, INPUT_PULLUP);
@@ -72,6 +98,8 @@ void setup() {
   pinMode(BUTTON_C, INPUT_PULLUP);
   
   Serial.begin(115200);
+  // Wait a bit before initializing the display.
+  delay(1000);
   init_display();
   Serial.print(F("Bluefruit Feather: "));
 
@@ -105,22 +133,13 @@ void setup() {
     
   ble.verbose(false);
   Serial.println(F("Waiting for a connection..."));
-  /*
-  while(!isConnected) {
-    ble.update(500);
-  }
-  */
+  update_display();
+
   midi.setRxCallback(midiInCallback);
-  
 }
 
 void loop() {
   ble.update(1);
-  /*
-  if(! isConnected) {
-    return;
-  }
-  */
   unsigned long currentTime = millis();
   
   // Send only 3 taps to avoid delay jitter.
@@ -129,20 +148,22 @@ void loop() {
   if(newTempo)
   {
     tapCounter = 0;
-    delayTime = (60000 * multipliers[currentMultiplier])/tempo;
+    delayTime = (60000 * signatures[currentSignature])/tempo;
     newTempo = false;
     update_display();
-    update_serial();
+    //update_serial();
   }
   
   if (tapCounter<=2)
   {
     if( currentTime - previousTime >= delayTime )
     {
-      digitalWrite(TAP_TEMPO_OUT, HIGH);
+      digitalWrite(OPTO_OUT, HIGH);
+      digitalWrite(RELAY_OUT, HIGH);
       previousTime = currentTime;
       delay(20);
-      digitalWrite(TAP_TEMPO_OUT, LOW);
+      digitalWrite(OPTO_OUT, LOW);
+      digitalWrite(RELAY_OUT, LOW);
       tapCounter++;
     }
   }
@@ -152,10 +173,10 @@ void loop() {
     if(!buttonCPressed)
     {
       buttonCPressed = true;
-      if(currentMultiplier < (MULTIPLIER_COUNT-1) )
-        currentMultiplier++;
+      if(currentSignature < (SIGNATURE_COUNT-1) )
+        currentSignature++;
       else
-        currentMultiplier = 0;
+        currentSignature = 0;
       update_display();
       newTempo = true;
     }
@@ -163,20 +184,39 @@ void loop() {
   else
     buttonCPressed = false;
 
-  /*
-  int test1 = analogRead(ENCODER_1);
-  int test2 = analogRead(ENCODER_2);
-  Serial.print(test1);
-  Serial.print(" ");
-  Serial.println(test2);
-  int test3 = digitalRead(ENCODER_1);
-  int test4 = digitalRead(ENCODER_2);
-  Serial.print(test3);
-  Serial.print(" ");
-  Serial.println(test4);
-  
-  delay(200);
-  */
+  // Use the encoder to manually adjust tempo.
+  // Has a simple debouncing code built-in.
+  // The grey code sequence for the encoder I'm using:
+  // ...11 -> 00 -> 10 -> 11... = ...3 -> 0 -> 2 -> 3...
+  // ...11 -> 10 -> 00 -> 11... = ...3 -> 2 -> 0 -> 3...
+  bool encoder1 = digitalRead(ENCODER_1);
+  bool encoder2 = digitalRead(ENCODER_2);
+  int code = (encoder1 << 1) + encoder2;
+  unsigned int codeChangeTime = 0;
+  if(code != prevCode)
+  {
+    Serial.println(code);
+    int tempoIncrement = 0;
+    if(code == 2 && prevCode == 0)
+    {
+      codeChangeTime = currentTime - previousTimeEncoder;
+      if(codeChangeTime > 8) // Debouncing
+        tempoIncrement = (codeChangeTime < GEAR_CHANGE)? 10 : 1;
+    }
+    else if(code == 0 && prevCode == 2)
+    {
+      codeChangeTime = currentTime - previousTimeEncoder;
+      if(codeChangeTime > 8) // Debouncing
+        tempoIncrement = (codeChangeTime < GEAR_CHANGE)? -10 : -1;
+    }
+    if(tempoIncrement != 0)
+    {
+      externalBPM = false;
+      set_tempo(tempo+tempoIncrement);
+      previousTimeEncoder = currentTime;
+    }
+    prevCode = code;
+  }
 }
 
 void error(const __FlashStringHelper*err) {
@@ -198,18 +238,29 @@ void disconnected(void) {
 // sets the tempo and delayTime to what's incoming
 // Uses both controller nuber and controller value
 // to have a big range of tempos (>128)
-
+// TODO: limit to a single channel.
 
 void midiInCallback(uint16_t tstamp, uint8_t status, uint8_t data0, uint8_t data1)
 { 
   if(status >= 176 && status <= 191 && data0 <= 99)
   {
-    newTempo = true;
-    tempo = data0 * 10 + data1;
+    set_tempo(data0 * 10 + data1);
     externalBPM = true;
   }
 }
 
+// Protects from absurd tempo settings
+void set_tempo(int incomingTempo)
+{
+  if( (incomingTempo < MAX_TEMPO && incomingTempo > MIN_TEMPO))
+  {
+    tempo = incomingTempo;
+    newTempo = true;
+  }
+}
+
+// Display initialization code, modified from:
+// https://learn.adafruit.com/adafruit-oled-featherwing?view=all
 
 void init_display() {
   Serial.println("OLED FeatherWing test");
@@ -234,12 +285,11 @@ void init_display() {
   display.setTextSize(2);
   display.setTextColor(WHITE);
   display.setCursor(0,0);
-  display.println("120bpm INT");
-  display.println("1/1 500 ms");
-  display.setCursor(0,0);
+  display.println("Wait...");
   display.display();
 }
 
+// Updates the display whenever a new tempo is set.
 void update_display()
 {
   display.clearDisplay();
@@ -255,7 +305,7 @@ void update_display()
   else
     display.println(" INT");
 
-  display.print(multitext[currentMultiplier]);
+  display.print(sigLabels[currentSignature]);
   display.print(" ");
   display.print(delayTime);
   if(delayTime < 100)
@@ -267,6 +317,8 @@ void update_display()
   yield();
   display.display();
 }
+
+// For debugging purposes:
 
 void update_serial()
 {
@@ -281,7 +333,7 @@ void update_serial()
   else
     Serial.print(" INT\t");
 
-  Serial.print(multitext[currentMultiplier]);
+  Serial.print(sigLabels[currentSignature]);
   Serial.print(" ");
   Serial.print(delayTime);
   if(delayTime < 100)
