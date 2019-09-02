@@ -6,19 +6,19 @@ information.
 
 Requires a companion Max/MSP patch.
 
+## Requirements
 
-
-## Hardware Requirements:
+### Hardware Requirements:
 - Adafruit Bluefruit LE Feather
 - Adafruit OLED FeatherWing
 
-##Libraries:
+### Libraries:
 - Adafruit BluefruitLE nRF51 library: https://github.com/adafruit/Adafruit_BluefruitLE_nRF51
 - FortySevenEffects MIDI Arduino Library: https://github.com/FortySevenEffects/arduino_midi_library
 - Adafruit SSD1306: https://github.com/adafruit/Adafruit_SSD1306
 - Adafruit_GFX: https://github.com/adafruit/Adafruit-GFX-Library
 
-## Other requirements:
+### Other requirements:
 - Ableton Live
 - Companion Max for Live patch (will upload it soon)
 
