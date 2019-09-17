@@ -53,9 +53,9 @@ Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_
 Adafruit_BLEMIDI midi(ble);
 
 #define OPTO_OUT  13
-#define RELAY_OUT  12
+#define RELAY_OUT  A2
 
-#define CHANNEL 1  // MIDI channel number
+#define CHANNEL 0  // MIDI channel number
 #define ENCODER_1 A0
 #define ENCODER_2 A1
 
@@ -82,7 +82,7 @@ int tapCounter = 0;
 // 1=quarter note, 0.5=eighth note, 0.75=three sixteenths (aka "The Edge" delay)
 float signatures[SIGNATURE_COUNT] = {1, 0.5, 0.75};
 String sigLabels[SIGNATURE_COUNT] = {"1/1", "1/2", "3/4"};
-int currentSignature = 0;
+int currentSignature = 1;
 bool buttonCPressed = false;
 // Encoder variables
 int prevCode = 3;
@@ -195,15 +195,14 @@ void loop() {
   unsigned int codeChangeTime = 0;
   if(code != prevCode)
   {
-    Serial.println(code);
     int tempoIncrement = 0;
-    if(code == 2 && prevCode == 0)
+    if(code == 1 && prevCode == 0)
     {
       codeChangeTime = currentTime - previousTimeEncoder;
       if(codeChangeTime > 8) // Debouncing
         tempoIncrement = (codeChangeTime < GEAR_CHANGE)? 10 : 1;
     }
-    else if(code == 0 && prevCode == 2)
+    else if(code == 0 && prevCode == 1)
     {
       codeChangeTime = currentTime - previousTimeEncoder;
       if(codeChangeTime > 8) // Debouncing
@@ -213,6 +212,7 @@ void loop() {
     {
       externalBPM = false;
       set_tempo(tempo+tempoIncrement);
+      send_tempo(tempo);
       previousTimeEncoder = currentTime;
     }
     prevCode = code;
@@ -237,7 +237,7 @@ void disconnected(void) {
 
 // If incoming MIDI message is a controller message (regardless of channel)
 // sets the tempo and delayTime to what's incoming
-// Uses both controller nuber and controller value
+// Uses both controller number and controller value
 // to have a big range of tempos (>128)
 // TODO: limit to a single channel.
 
@@ -343,4 +343,14 @@ void update_serial()
     Serial.println("ms");
   else
     Serial.println(" ms");
+}
+
+void send_tempo(int tempo)
+{
+  int ctl = tempo/10;
+  int val = tempo%10;
+  midi.send(0xB0 | CHANNEL, ctl, val);
+  Serial.print(ctl);
+  Serial.print("\t");
+  Serial.println(val);
 }
