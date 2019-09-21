@@ -1,3 +1,5 @@
+<img src="https://github.com/jpcarrascal/BLESync/blob/master/hero.png?raw=true" />
+
 # BLESync: a BT-LE tap tempo controller.
 This is a BPM to tap tempo controller with a twist: I can receive BPM values (encoded as MIDI CCs) via a Bluetooth LE connection. This allows to sync delays and other pedals with a tap tempo input with Ableton live (Requires a companion Max/MSP patch).
 
