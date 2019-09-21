@@ -115,7 +115,7 @@ void setup() {
       error(F("Couldn't factory reset"));
     }
   }
-  ble.println("AT+GAPDEVNAME=BLEMIDITapTempo");
+  ble.println("AT+GAPDEVNAME=BLESync");
   ble.echo(false);
 
   Serial.println("Requesting Bluefruit info:");
@@ -241,11 +241,11 @@ void disconnected(void) {
 // to have a big range of tempos (>128)
 // TODO: limit to a single channel.
 
-void midiInCallback(uint16_t tstamp, uint8_t status, uint8_t data0, uint8_t data1)
+void midiInCallback(uint16_t tstamp, uint8_t status, uint8_t CCnumber, uint8_t CCvalue)
 { 
-  if(status >= 176 && status <= 191 && data0 <= 99)
+  if(status >= 176 && status <= 191 && CCnumber <= 99)
   {
-    set_tempo(data0 * 10 + data1);
+    set_tempo(CCnumber * 10 + CCvalue);
     externalBPM = true;
   }
 }
