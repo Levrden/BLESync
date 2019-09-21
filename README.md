@@ -31,7 +31,7 @@ Uses the Adafruit OLED wing to display tempo/delay time information.
 
 ### Other requirements for synchronizing with Ableton Live:
 - Ableton Live
-- Companion Max for Live patch (will upload it soon)
+- Max for Live
 
 ## Notes:
 - So far the project works on Mac OS (tested on El Capitan). Not tested yet on Windows, but it is supposed to work.
