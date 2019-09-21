@@ -7,7 +7,7 @@ As per MIDI specs, BLE MIDI does not transmit MIDI clock, so it is necessary to 
 	CCnumber = bpm / 10
 	CCvalue = bpm % 10
 
-Where Both CCnumber and CCvalue are integers. Decoding is also very simple:
+Where Both CCnumber and CCvalue are integers. Decoding (which happens in the Arduino code) is also very simple:
 
     bpm = CCnumber * 10 + CCvalue
 
