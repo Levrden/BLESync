@@ -52,12 +52,12 @@ Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 Adafruit_BLEMIDI midi(ble);
 
-#define OPTO_OUT  13
-#define RELAY_OUT  A2
-
 #define CHANNEL 0  // MIDI channel number
-#define ENCODER_1 A0
-#define ENCODER_2 A1
+#define ENCODER_1   A0
+#define ENCODER_2   A1
+#define PUSH_BUTTON A2
+#define RELAY_OUT   A3
+#define OPTO_OUT    13
 
 #define BUTTON_A  9
 #define BUTTON_B  6
@@ -70,6 +70,7 @@ Adafruit_BLEMIDI midi(ble);
 #define SIGNATURE_COUNT 3
 #define MIN_TEMPO 20
 #define MAX_TEMPO 999
+#define SOURCE_COUNT 3
 
 bool isConnected = false;
 bool externalBPM = false;
@@ -78,12 +79,27 @@ int delayTime = 500;
 int tempo = 120;
 bool newTempo = true;
 int tapCounter = 0;
+// Variables for switching internal or external tempo control
+// by long push button presses
+bool remoteEnabled = true;
+bool remoteEnableChanged = false;
+bool encoderEnabled = true;
+bool encoderEnableChanged = false;
+String sourceStatus = "INT";
+
+float sources[SOURCE_COUNT] = {0, 1, 2};
+String sourceLabels[SIGNATURE_COUNT] = {"i+e", "int", "ext"};
+int currentSource = 0;
+
+
 // Delay time signature:
 // 1=quarter note, 0.5=eighth note, 0.75=three sixteenths (aka "The Edge" delay)
 float signatures[SIGNATURE_COUNT] = {1, 0.5, 0.75};
 String sigLabels[SIGNATURE_COUNT] = {"1/1", "1/2", "3/4"};
 int currentSignature = 1;
-bool buttonCPressed = false;
+bool pushBPressed = false;
+unsigned long pushBTime = 0;
+unsigned long prevPushBTime = 0;
 // Encoder variables
 int prevCode = 3;
 unsigned long previousTimeEncoder = 0;
@@ -96,6 +112,7 @@ void setup() {
   pinMode(BUTTON_A, INPUT_PULLUP);
   pinMode(BUTTON_B, INPUT_PULLUP);
   pinMode(BUTTON_C, INPUT_PULLUP);
+  pinMode(PUSH_BUTTON, INPUT_PULLUP);
   
   Serial.begin(115200);
   // Wait a bit before initializing the display.
@@ -168,24 +185,35 @@ void loop() {
     }
   }
   
-  if(!digitalRead(BUTTON_C))
+  if(!digitalRead(PUSH_BUTTON))
   {
-    if(!buttonCPressed)
+    if(!pushBPressed)
     {
-      buttonCPressed = true;
-      if(currentSignature < (SIGNATURE_COUNT-1) )
-        currentSignature++;
-      else
-        currentSignature = 0;
-      update_display();
-      newTempo = true;
+      pushBPressed = true;
+      pushBTime = millis();
+      prevPushBTime = millis();
+    }
+    if( (millis()  - prevPushBTime)  > 1500)
+    {
+      switch_source();
+      prevPushBTime = millis();
     }
   }
   else
-    buttonCPressed = false;
+  {
+    if(pushBTime != 0)
+    {
+      Serial.print("Time held: ");
+      Serial.println(millis() - pushBTime);
+      if( (millis() - pushBTime) <= 1500 )
+        switch_signature();
+    }
+    pushBTime = 0;
+    pushBPressed = false;
+  }
 
   // Use the encoder to manually adjust tempo.
-  // Has a simple debouncing code built-in.
+  // Has a simple built-in debouncing code.
   // The grey code sequence for the encoder I'm using:
   // ...11 -> 00 -> 10 -> 11... = ...3 -> 0 -> 2 -> 3...
   // ...11 -> 10 -> 00 -> 11... = ...3 -> 2 -> 0 -> 3...
@@ -193,16 +221,16 @@ void loop() {
   bool encoder2 = digitalRead(ENCODER_2);
   int code = (encoder1 << 1) + encoder2;
   unsigned int codeChangeTime = 0;
-  if(code != prevCode)
+  if(code != prevCode && (currentSource != 2) )
   {
     int tempoIncrement = 0;
-    if(code == 1 && prevCode == 0)
+    if(code == 0 && prevCode == 1)
     {
       codeChangeTime = currentTime - previousTimeEncoder;
       if(codeChangeTime > 8) // Debouncing
         tempoIncrement = (codeChangeTime < GEAR_CHANGE)? 10 : 1;
     }
-    else if(code == 0 && prevCode == 1)
+    else if(code == 1 && prevCode == 0)
     {
       codeChangeTime = currentTime - previousTimeEncoder;
       if(codeChangeTime > 8) // Debouncing
@@ -243,17 +271,20 @@ void disconnected(void) {
 
 void midiInCallback(uint16_t tstamp, uint8_t status, uint8_t CCnumber, uint8_t CCvalue)
 { 
-  if(status >= 176 && status <= 191 && CCnumber <= 99)
+  if(currentSource != 1)
   {
-    set_tempo(CCnumber * 10 + CCvalue);
-    externalBPM = true;
+    if(status >= 176 && status <= 191 && CCnumber <= 99)
+    {
+      set_tempo(CCnumber * 10 + CCvalue);
+      externalBPM = true;
+    }
   }
 }
 
 // Protects from absurd tempo settings
 void set_tempo(int incomingTempo)
 {
-  if( (incomingTempo < MAX_TEMPO && incomingTempo > MIN_TEMPO))
+  if( (incomingTempo < MAX_TEMPO && incomingTempo >= MIN_TEMPO))
   {
     tempo = incomingTempo;
     newTempo = true;
@@ -297,14 +328,11 @@ void update_display()
   display.setCursor(0,0);
   display.print(tempo);
   if(tempo < 100)
-    display.print(" bpm");
+    display.print(" bpm ");
   else
-    display.print("bpm");
+    display.print("bpm ");
 
-  if(externalBPM)
-    display.println(" EXT");
-  else
-    display.println(" INT");
+  display.println(sourceLabels[currentSource]);
 
   display.print(sigLabels[currentSignature]);
   display.print(" ");
@@ -325,15 +353,12 @@ void update_serial()
 {
   Serial.print(tempo);
   if(tempo < 100)
-    Serial.print(" bpm");
+    Serial.print(" bpm ");
   else
-    Serial.print("bpm");
+    Serial.print("bpm ");
 
-  if(externalBPM)
-    Serial.print(" EXT\t");
-  else
-    Serial.print(" INT\t");
-
+  Serial.println(sourceLabels[currentSource]);
+    
   Serial.print(sigLabels[currentSignature]);
   Serial.print(" ");
   Serial.print(delayTime);
@@ -353,4 +378,24 @@ void send_tempo(int tempo)
   Serial.print(ctl);
   Serial.print("\t");
   Serial.println(val);
+}
+
+void switch_signature()
+{
+  if(currentSignature < (SIGNATURE_COUNT-1) )
+    currentSignature++;
+  else
+    currentSignature = 0;
+  update_display();
+  newTempo = true;
+}
+
+void switch_source()
+{
+  if(currentSource < (SOURCE_COUNT-1) )
+    currentSource++;
+  else
+    currentSource = 0;
+  update_display();
+  Serial.println("Source changed!");
 }
