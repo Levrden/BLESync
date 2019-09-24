@@ -1,4 +1,4 @@
-# BLESync: a BT-LE tap tempo controller.
+# BLESync: a BT-LE controller for tap-tempo guitar pedals
 <img src="https://github.com/jpcarrascal/BLESync/blob/master/hero.png?raw=true" />
 
 BLESync receives BPM values (encoded as MIDI CCs) from a computer via Bluetooth LE. This allows to sync delays and other pedals with a tap tempo input.

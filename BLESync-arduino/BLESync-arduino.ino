@@ -1,11 +1,10 @@
 /*
-BT tap tempo controller.
+BLESync: A BT-LE CONTROLLER FOR TAP-TEMPO GUITAR PEDALS
+
 Will receive a tempo value (encoded as MIDI CCs) and generate tap tempo signals.
 This allows to sync delays and other pedals with a tap tempo input
 with Ableton live. Uses theAdafuir OLED wing to display tempo/delay time
 information.
-
-Requires a companion Max/MSP patch.
 
 HARDWARE REQUIREMENTS:
 - Adafruit Bluefruit LE Feather
@@ -17,12 +16,9 @@ LIBRARIES:
 - Adafruit SSD1306: https://github.com/adafruit/Adafruit_SSD1306
 - Adafruit_GFX: https://github.com/adafruit/Adafruit-GFX-Library
 
-OTHER:
-- Companion Max for Live patch (will upload it soon)
-
 NOTES:
 - BLE MIDI does not transmit MIDI clock, so MIDI CC messages are used
-  to encode a wide range of tempos (0-999)
+  to encode a wide range of tempos (20-999)
 - Based on the "Hello World" Bluefruit Feather UNTZtrument MIDI example here:
   https://github.com/adafruit/Adafruit_UNTZtrument
   as well as the Adafruit OLED FeatherWing sample code here:
