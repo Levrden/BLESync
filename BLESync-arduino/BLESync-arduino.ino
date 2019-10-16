@@ -58,6 +58,7 @@ Adafruit_BLEMIDI midi(ble);
 #define BUTTON_A  9
 #define BUTTON_B  6
 #define BUTTON_C  5
+#define VBATPIN A7
 
 // GEAR_CHANGE is a threshold time between encoder increment/decrements
 // below which tempo is changed by +/-10 increments as opposed of +/-1.
@@ -334,6 +335,13 @@ void init_display() {
   display.setTextColor(WHITE);
   display.setCursor(0,0);
   display.println("Wait...");
+  // Show battery voltage (if much lower than 3.7, batt is almost empty)
+  float measuredvbat = analogRead(VBATPIN);
+  measuredvbat *= 2;    // we divided by 2, so multiply back
+  measuredvbat *= 3.3;  // Multiply by 3.3V, our reference voltage
+  measuredvbat /= 1024; // convert to voltage
+  display.print("VBat: " );
+  display.println(measuredvbat);
   display.display();
 }
 
