@@ -72,6 +72,9 @@ bool isConnected = false;
 bool externalBPM = false;
 unsigned long previousTime = 0;
 int delayTime = 500;
+int tempoMSB = 12;
+int tempoLSB = 0;
+bool tempoMSBreceived = false;
 int tempo = 120;
 bool newTempo = true;
 int tapCounter = 0;
@@ -271,8 +274,25 @@ void midiInCallback(uint16_t tstamp, uint8_t status, uint8_t CCnumber, uint8_t C
   {
     if(status >= 176 && status <= 191 && CCnumber <= 99)
     {
-      set_tempo(CCnumber * 10 + CCvalue);
-      externalBPM = true;
+      Serial.print("Controller received: ");
+      Serial.println(CCnumber); 
+      if(CCnumber == 16)
+      {
+        tempoMSB = CCvalue;
+        tempoMSBreceived = true;   
+      }
+      else if(CCnumber == 48)
+      {
+        if(tempoMSBreceived)
+        {
+          tempoLSB = CCvalue;
+          set_tempo(tempoMSB * 10 + tempoLSB);
+          externalBPM = true;
+          tempoMSBreceived = false;
+        }
+          else
+            Serial.print("No MSB!!!");
+      }
     }
   }
 }
