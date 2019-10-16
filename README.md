@@ -2,14 +2,16 @@
 <img src="https://github.com/jpcarrascal/BLESync/blob/master/hero.png?raw=true" />
 
 BLESync receives BPM values (encoded as MIDI CCs) from a computer via Bluetooth LE. This allows to sync delays and other pedals with a tap tempo input.
-As per MIDI specs, BLE MIDI does not transmit MIDI clock, so it is necessary to encode TEMPO as MIDI CC as a combination of a controller number and its value. The encoding is simple:
+As per MIDI specs, BLE MIDI does not transmit MIDI clock, so it is necessary to encode TEMPO as MIDI CC as a MSB/LSB controller combination. The encoding is simple:
 
-	CCnumber = bpm / 10
-	CCvalue = bpm % 10
+	tempoMSB = bpm / 10
+	tempoLSB = bpm % 10
 
 Where Both CCnumber and CCvalue are integers. Decoding (which happens in the Arduino code) is also very simple:
 
-    bpm = CCnumber * 10 + CCvalue
+    bpm = tempoMSB * 10 + tempoLSB
+
+As per MIDI specs recommendation (https://www.midi.org/), uses CC 16 for tempoMSB and CC 48 for tempoLSB.
 
 Currently tested with Ableton live. A companion Max/MSP patch is included to simplify encoding tempo as MIDI CCs.
 
