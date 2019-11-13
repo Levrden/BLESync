@@ -66,11 +66,13 @@ Adafruit_BLEMIDI midi(ble);
 #define MAX_TEMPO 999
 #define SOURCE_COUNT 3
 // Debouncing threshold
-#define DTHRESHOLD 17
+#define DBTHRESHOLD 10
 
 bool isConnected = false;
 bool externalBPM = false;
 unsigned long previousTime = 0;
+bool previousEncoder1 = true;
+bool previousEncoder2 = true;
 int delayTime = 500;
 int tempoMSB = 12;
 int tempoLSB = 0;
@@ -84,7 +86,6 @@ bool remoteEnabled = true;
 bool remoteEnableChanged = false;
 bool encoderEnabled = true;
 bool encoderEnableChanged = false;
-String sourceStatus = "INT";
 
 float sources[SOURCE_COUNT] = {0, 1, 2};
 String sourceLabels[SIGNATURE_COUNT] = {"i+e", "int", "ext"};
@@ -151,7 +152,7 @@ void setup() {
   Serial.println(F("Waiting for a connection..."));
   update_display();
 
-  midi.setRxCallback(midiInCallback);
+  midi.setRxCallback(MIDI_in_callback);
 }
 
 void loop() {
@@ -167,7 +168,6 @@ void loop() {
     delayTime = (60000 * signatures[currentSignature])/tempo;
     newTempo = false;
     update_display();
-    //update_serial();
   }
   
   if (tapCounter<=2)
@@ -219,31 +219,33 @@ void loop() {
   bool encoder1 = digitalRead(ENCODER_1);
   bool encoder2 = digitalRead(ENCODER_2);
   int code = (encoder1 << 1) + encoder2;
+  int tempoIncrement = 0;
   unsigned int codeChangeTime = 0;
-  if(code != prevCode && (currentSource != 2) )
+  if(code != prevCode && (currentSource != 2))
   {
-    int tempoIncrement = 0;
     if(code == 0 && prevCode == 1)
     {
       codeChangeTime = currentTime - previousTimeEncoder;
-      if(codeChangeTime > DTHRESHOLD) // Debouncing
+      if(codeChangeTime > DBTHRESHOLD) // Debouncing
         tempoIncrement = 1;
     }
     else if(code == 1 && prevCode == 0)
     {
       codeChangeTime = currentTime - previousTimeEncoder;
-      if(codeChangeTime > DTHRESHOLD) // Debouncing
+      if(codeChangeTime > DBTHRESHOLD) // Debouncing
         tempoIncrement = -1;
     }
     if(tempoIncrement != 0)
     {
       externalBPM = false;
       set_tempo(tempo+tempoIncrement);
-      send_tempo(tempo);
+      // Send new tempo via MIDI?
+      //send_tempo(tempo);
       previousTimeEncoder = currentTime;
     }
     prevCode = code;
   }
+
 }
 
 void error(const __FlashStringHelper*err) {
@@ -268,13 +270,13 @@ void disconnected(void) {
 // to have a big range of tempos (>128)
 // TODO: limit to a single channel.
 
-void midiInCallback(uint16_t tstamp, uint8_t status, uint8_t CCnumber, uint8_t CCvalue)
+void MIDI_in_callback(uint16_t tstamp, uint8_t status, uint8_t CCnumber, uint8_t CCvalue)
 { 
   if(currentSource != 1)
   {
     if(status >= 176 && status <= 191 && CCnumber <= 99)
     {
-      Serial.print("Controller received: ");
+      Serial.print("CTRL received: ");
       Serial.println(CCnumber); 
       if(CCnumber == 16)
       {
@@ -291,7 +293,7 @@ void midiInCallback(uint16_t tstamp, uint8_t status, uint8_t CCnumber, uint8_t C
           tempoMSBreceived = false;
         }
           else
-            Serial.print("No MSB!!!");
+            Serial.print("No MSB!");
       }
     }
   }
@@ -311,7 +313,7 @@ void set_tempo(int incomingTempo)
 // https://learn.adafruit.com/adafruit-oled-featherwing?view=all
 
 void init_display() {
-  Serial.println("OLED FeatherWing test");
+  Serial.println("OLED test");
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
  
@@ -371,36 +373,12 @@ void update_display()
 }
 
 // For debugging purposes:
-
-void update_serial()
-{
-  Serial.print(tempo);
-  if(tempo < 100)
-    Serial.print(" bpm ");
-  else
-    Serial.print("bpm ");
-
-  Serial.println(sourceLabels[currentSource]);
-    
-  Serial.print(sigLabels[currentSignature]);
-  Serial.print(" ");
-  Serial.print(delayTime);
-  if(delayTime < 100)
-    Serial.println("  ms");
-  else if(delayTime > 999)
-    Serial.println("ms");
-  else
-    Serial.println(" ms");
-}
-
 void send_tempo(int tempo)
 {
-  int ctl = tempo/10;
-  int val = tempo%10;
-  midi.send(0xB0 | CHANNEL, ctl, val);
-  Serial.print(ctl);
-  Serial.print("\t");
-  Serial.println(val);
+  int val1 = tempo/10;
+  int val2 = tempo%10;
+  midi.send(0xB0 | CHANNEL, 17, val1);
+  midi.send(0xB0 | CHANNEL, 48, val2);
 }
 
 void switch_signature()
