@@ -60,14 +60,13 @@ Adafruit_BLEMIDI midi(ble);
 #define BUTTON_C  5
 #define VBATPIN A7
 
-// GEAR_CHANGE is a threshold time between encoder increment/decrements
-// below which tempo is changed by +/-10 increments as opposed of +/-1.
-#define GEAR_CHANGE 100
 // Number of delay time signatures
 #define SIGNATURE_COUNT 3
 #define MIN_TEMPO 20
 #define MAX_TEMPO 999
 #define SOURCE_COUNT 3
+// Debouncing threshold
+#define DTHRESHOLD 17
 
 bool isConnected = false;
 bool externalBPM = false;
@@ -227,14 +226,14 @@ void loop() {
     if(code == 0 && prevCode == 1)
     {
       codeChangeTime = currentTime - previousTimeEncoder;
-      if(codeChangeTime > 8) // Debouncing
-        tempoIncrement = (codeChangeTime < GEAR_CHANGE)? 10 : 1;
+      if(codeChangeTime > DTHRESHOLD) // Debouncing
+        tempoIncrement = 1;
     }
     else if(code == 1 && prevCode == 0)
     {
       codeChangeTime = currentTime - previousTimeEncoder;
-      if(codeChangeTime > 8) // Debouncing
-        tempoIncrement = (codeChangeTime < GEAR_CHANGE)? -10 : -1;
+      if(codeChangeTime > DTHRESHOLD) // Debouncing
+        tempoIncrement = -1;
     }
     if(tempoIncrement != 0)
     {
