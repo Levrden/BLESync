@@ -65,8 +65,6 @@ Adafruit_BLEMIDI midi(ble);
 #define MIN_TEMPO 20
 #define MAX_TEMPO 999
 #define SOURCE_COUNT 3
-// Debouncing threshold
-#define DBTHRESHOLD 10
 
 bool isConnected = false;
 bool externalBPM = false;
@@ -211,11 +209,15 @@ void loop() {
     pushBPressed = false;
   }
 
-  // Use the encoder to manually adjust tempo.
-  // Has a simple built-in debouncing code.
-  // The grey code sequence for the encoder I'm using:
-  // ...11 -> 00 -> 10 -> 11... = ...3 -> 0 -> 2 -> 3...
-  // ...11 -> 10 -> 00 -> 11... = ...3 -> 2 -> 0 -> 3...
+  /*
+    Use the encoder to manually adjust tempo.
+    The grey code sequence for the encoder I'm using:
+    CW  rotation: (bin)...11 -> 00 -> 10 -> 11... = (dec)...3 -> 1 -> 0 -> 3...
+    CCW rotation: (bin)...11 -> 10 -> 00 -> 11... = (dec)...3 -> 0 -> 1 -> 3...
+    Other sequences are noise and thus rejected.
+    Tempo is just updated when the sequence is completed (3 is received)
+    This code rejects bounces effectively.
+  */
   bool encoder1 = digitalRead(ENCODER_1);
   bool encoder2 = digitalRead(ENCODER_2);
   int code = (encoder1 << 1) + encoder2;
@@ -225,7 +227,7 @@ void loop() {
         tempoIncrement = 1;
     else if(prevCode == 0 && code == 1)
         tempoIncrement = -1;
-    else if(code == 3 && ( (currentTime - previousTimeEncoder) > DBTHRESHOLD ) )
+    else if(code == 3)
     {
       externalBPM = false;
       set_tempo(tempo+tempoIncrement);
