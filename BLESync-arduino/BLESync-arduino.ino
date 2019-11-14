@@ -71,8 +71,8 @@ Adafruit_BLEMIDI midi(ble);
 bool isConnected = false;
 bool externalBPM = false;
 unsigned long previousTime = 0;
-bool previousEncoder1 = true;
-bool previousEncoder2 = true;
+int tempoIncrement = 0;
+int previousIncrement = 0;
 int delayTime = 500;
 int tempoMSB = 12;
 int tempoLSB = 0;
@@ -219,29 +219,20 @@ void loop() {
   bool encoder1 = digitalRead(ENCODER_1);
   bool encoder2 = digitalRead(ENCODER_2);
   int code = (encoder1 << 1) + encoder2;
-  int tempoIncrement = 0;
-  unsigned int codeChangeTime = 0;
-  if(code != prevCode && (currentSource != 2))
+  if(code != prevCode && (currentSource != 2) )
   {
-    if(code == 0 && prevCode == 1)
-    {
-      codeChangeTime = currentTime - previousTimeEncoder;
-      if(codeChangeTime > DBTHRESHOLD) // Debouncing
+    if(prevCode == 1 && code == 0)
         tempoIncrement = 1;
-    }
-    else if(code == 1 && prevCode == 0)
-    {
-      codeChangeTime = currentTime - previousTimeEncoder;
-      if(codeChangeTime > DBTHRESHOLD) // Debouncing
+    else if(prevCode == 0 && code == 1)
         tempoIncrement = -1;
-    }
-    if(tempoIncrement != 0)
+    else if(code == 3 && ( (currentTime - previousTimeEncoder) > DBTHRESHOLD ) )
     {
       externalBPM = false;
       set_tempo(tempo+tempoIncrement);
       // Send new tempo via MIDI?
       //send_tempo(tempo);
       previousTimeEncoder = currentTime;
+      previousIncrement = tempoIncrement;
     }
     prevCode = code;
   }
