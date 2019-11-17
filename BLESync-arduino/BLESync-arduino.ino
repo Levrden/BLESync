@@ -76,8 +76,8 @@ int tempoMSB = 12;
 int tempoLSB = 0;
 bool tempoMSBreceived = false;
 int tempo = 120;
-bool newTempo = true;
-int tapCounter = 0;
+bool newTempo = false; // Do not send tempo at startup
+int tapCounter = 3; // Do not send tempo at startup
 // Variables for switching internal or external tempo control
 // by long push button presses
 bool remoteEnabled = true;
