@@ -1,5 +1,5 @@
 # BLESync: a BT-LE controller for tap-tempo guitar pedals
-<img src="https://github.com/jpcarrascal/BLESync/blob/master/hero.png?raw=true" />
+<img src="https://github.com/jpcarrascal/BLESync/blob/master/block-diagram.png?raw=true" />
 
 BLESync receives BPM values (encoded as MIDI CCs) from a computer via Bluetooth LE. This allows to sync delays and other pedals with a tap tempo input.
 As per MIDI specs, BLE MIDI does not transmit MIDI clock, so it is necessary to encode TEMPO as MIDI CC as a MSB/LSB controller combination. The encoding is simple:
@@ -41,3 +41,5 @@ Uses the Adafruit OLED wing to display tempo/delay time information.
   https://github.com/adafruit/Adafruit_UNTZtrument
   as well as the Adafruit OLED FeatherWing sample code here:
   https://learn.adafruit.com/adafruit-oled-featherwing?view=all
+
+<img src="https://github.com/jpcarrascal/BLESync/blob/master/hero.png?raw=true" />
