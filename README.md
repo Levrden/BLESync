@@ -42,6 +42,6 @@ Uses the Adafruit OLED wing to display tempo/delay time information.
   https://github.com/adafruit/Adafruit_UNTZtrument
   as well as the Adafruit OLED FeatherWing sample code here:
   https://learn.adafruit.com/adafruit-oled-featherwing?view=all
-- I presented a demo for BLESync at the First Nordic Sound and Music Computing conference in Stockholm (NOv 2019). You can finde the related paper in the proceedings [here](http://smcsweden.se/proceedings/NordicSMC_ISon_2019_Proceedings.pdf) and the poster [here](https://github.com/jpcarrascal/BLESync/blob/master/BLESync-poster-A4.pdf).
+- I presented a demo for BLESync at the [First Nordic Sound and Music Computing conference](http://smcsweden.se/) in Stockholm (Nov. 2019). You can finde the related paper in the proceedings [here](http://smcsweden.se/proceedings/NordicSMC_ISon_2019_Proceedings.pdf) and the poster [here](https://github.com/jpcarrascal/BLESync/blob/master/BLESync-poster-A4.pdf).
 
 <img src="https://github.com/jpcarrascal/BLESync/blob/master/hero.png?raw=true" />
